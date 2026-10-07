@@ -1,0 +1,113 @@
+name: Build unattended Windows desktop
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: "1.99.0"
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@ebc0426251bc40c7cd31162802432c68818ab8f0 # v2.0.9
+        with:
+          version: 15.0.6
+
+      - name: Install Flutter
+        id: flutter
+        uses: subosito/flutter-action@2783a3f08e1baf891508463f8c6653c258246225 # v2.12.0
+        with:
+          channel: stable
+          flutter-version: 3.24.5
+          architecture: x64
+
+      - name: Use the repository's Windows Flutter engine
+        shell: pwsh
+        run: |
+          flutter precache --windows
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter Windows engine download failed' }
+          Invoke-WebRequest -Uri https://github.com/rustdesk/engine/releases/download/main/windows-x64-release.zip -OutFile windows-x64-release.zip
+          Expand-Archive -Path windows-x64-release.zip -DestinationPath windows-x64-release
+          $engine = Join-Path "${{ steps.flutter.outputs['CACHE-PATH'] }}" 'bin/cache/artifacts/engine/windows-x64-release'
+          Copy-Item -Path windows-x64-release/* -Destination $engine -Recurse -Force
+
+      - name: Patch Flutter for this source tree
+        shell: bash
+        run: |
+          flutter_root=$(dirname "$(dirname "$(which flutter)")")
+          cp .github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff "$flutter_root/"
+          git -C "$flutter_root" apply flutter_3.24.4_dropdown_menu_enableFilter.diff
+
+      - name: Configure vcpkg cache
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Set up vcpkg
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11
+        with:
+          vcpkgDirectory: C:\vcpkg
+          vcpkgGitCommitId: 9e593bb18ea69cc5095e012465dcd675a822ed0d
+          doNotCache: false
+
+      - name: Install native dependencies
+        shell: pwsh
+        env:
+          VCPKG_BINARY_SOURCES: clear;x-gha,readwrite
+          VCPKG_DEFAULT_HOST_TRIPLET: x64-windows-static
+        run: |
+          & "$env:VCPKG_ROOT/vcpkg.exe" install --triplet x64-windows-static "--x-install-root=$env:VCPKG_ROOT/installed"
+          if ($LASTEXITCODE -ne 0) { throw 'vcpkg install failed' }
+
+      - name: Generate Flutter bridge
+        shell: pwsh
+        run: |
+          Push-Location flutter
+          try {
+            flutter pub get
+            if ($LASTEXITCODE -ne 0) { throw 'Flutter dependency resolution failed' }
+          } finally {
+            Pop-Location
+          }
+          cargo install flutter_rust_bridge_codegen --version 1.80.1 --features uuid --locked
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter bridge generator installation failed' }
+          $env:RUST_LOG = 'info'
+          flutter_rust_bridge_codegen --rust-input src/flutter_ffi.rs --dart-output flutter/lib/generated_bridge.dart --c-output flutter/macos/Runner/bridge_generated.h
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter bridge generation failed' }
+
+      - name: Build Windows installer and wake helper
+        shell: pwsh
+        run: ./packaging/unattended/build-windows.ps1
+
+      - name: Verify build outputs
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path . -Filter 'rustdesk-*-install.exe' -File | Select-Object -First 1
+          if ($null -eq $installer) { throw 'Windows installer was not produced' }
+          if (!(Test-Path target/release/rustdesk-wake.exe)) { throw 'Windows wake helper was not produced' }
+          Get-FileHash $installer.FullName -Algorithm SHA256
+          Get-FileHash target/release/rustdesk-wake.exe -Algorithm SHA256
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rustdesk-unattended-windows-x64
+          path: |
+            rustdesk-*-install.exe
+            target/release/rustdesk-wake.exe
+          if-no-files-found: error

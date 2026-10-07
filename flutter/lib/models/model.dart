@@ -40,6 +40,8 @@ import 'package:vector_math/vector_math.dart' show Vector2;
 import '../common.dart';
 import '../utils/image.dart' as img;
 import '../common/widgets/dialog.dart';
+import '../desktop/widgets/unattended_access.dart';
+import '../desktop/widgets/unattended_reconnect.dart';
 import 'input_model.dart';
 import 'platform_model.dart';
 import 'package:flutter_hbb/utils/scale.dart';
@@ -962,6 +964,22 @@ class FfiModel with ChangeNotifier {
           sessionId, type, title, text, link, hasRetry, dialogManager);
     } else {
       var hasRetry = evt['hasRetry'] == 'true';
+      if ((isWindows || isLinux) &&
+          parent.target?.connType == ConnType.defaultConn &&
+          title == 'Connection Error' &&
+          (_pi.platformAdditions[kPlatformAdditionsUnattendedAccess] == true ||
+              bind.mainGetPeerOptionSync(
+                      id: peerId, key: kOptionAllowUnattendedReconnect) == 'Y')) {
+        int? delay;
+        if (isUnattendedTransientError(title, text, suggested: hasRetry)) {
+          _offlineReconnectStartTime ??= DateTime.now();
+          delay = unattendedRetryDelay(
+              DateTime.now().difference(_offlineReconnectStartTime!), _reconnects);
+        }
+        if (delay != null) _reconnects = delay;
+        showMsgBox(sessionId, type, title, text, link, delay != null, dialogManager);
+        return;
+      }
       if (!hasRetry) {
         hasRetry = shouldAutoRetryOnOffline(type, title, text);
       }
@@ -4331,6 +4349,7 @@ class FFI {
       } finally {
         _applyPendingMonitorRestore();
       }
+      showUnattendedDisplayPicker(this);
     }
   }
 

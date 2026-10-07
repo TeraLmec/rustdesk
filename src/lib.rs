@@ -15,6 +15,8 @@ mod server;
 pub use self::server::*;
 mod client;
 mod lan;
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+mod wake;
 #[cfg(not(any(target_os = "ios")))]
 mod rendezvous_mediator;
 #[cfg(not(any(target_os = "ios")))]

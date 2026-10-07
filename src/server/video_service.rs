@@ -600,7 +600,8 @@ fn run(vs: VideoService) -> ResultType<()> {
     // to-do: wayland ensure_inited should pass current display index.
     // But for now, we do not support multi-screen capture on wayland.
     #[cfg(target_os = "linux")]
-    super::wayland::ensure_inited()?;
+    super::wayland::ensure_inited()
+        .map_err(|err| super::unattended::capture_error(&vs.sp, err))?;
     #[cfg(target_os = "linux")]
     let _wayland_call_on_ret = {
         // Increment active display count when starting
@@ -627,7 +628,12 @@ fn run(vs: VideoService) -> ResultType<()> {
     #[cfg(windows)]
     let dxgi_recovery_state = vs.dxgi_recovery_state.clone();
     let sp = vs.sp;
-    let mut c = get_capturer(vs.source, display_idx, last_portable_service_running)?;
+    let mut c = get_capturer(vs.source, display_idx, last_portable_service_running).map_err(|err| {
+        #[cfg(target_os = "linux")]
+        return super::unattended::capture_error(&sp, err);
+        #[cfg(not(target_os = "linux"))]
+        err
+    })?;
     #[cfg(windows)]
     // ACCESS_LOST marks the next successful capturer creation as a recovery. This timestamp is
     // consumed once and temporarily holds off the normal WouldBlock-to-GDI fallback, giving the

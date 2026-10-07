@@ -769,6 +769,7 @@ pub fn request_remote_desktop(
     dbus::Path<'static>,
     bool,
 )> {
+    base::config::unattended::check_interactive_capture()?;
     unsafe {
         if !INIT {
             gstreamer::init()?;
@@ -1731,6 +1732,27 @@ fn sort_streams(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn unattended_capture_refuses_before_opening_a_portal() {
+        use base::config::{keys::OPTION_ALLOW_UNATTENDED_ACCESS, unattended::CAPTURE_REQUIRED};
+        use hbb_common::config::OVERWRITE_SETTINGS;
+
+        let previous = OVERWRITE_SETTINGS
+            .write()
+            .unwrap()
+            .insert(OPTION_ALLOW_UNATTENDED_ACCESS.to_owned(), "Y".to_owned());
+        let result = super::request_remote_desktop(false)
+            .err()
+            .map(|err| err.to_string());
+        let mut settings = OVERWRITE_SETTINGS.write().unwrap();
+        if let Some(value) = previous {
+            settings.insert(OPTION_ALLOW_UNATTENDED_ACCESS.to_owned(), value);
+        } else {
+            settings.remove(OPTION_ALLOW_UNATTENDED_ACCESS);
+        }
+        assert_eq!(result.as_deref(), Some(CAPTURE_REQUIRED));
+    }
+
     use super::stage_err;
 
     #[test]

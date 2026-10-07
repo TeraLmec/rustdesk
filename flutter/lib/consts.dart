@@ -19,6 +19,7 @@ const kKeyTranslateMode = 'translate';
 
 const String kPlatformAdditionsIsWayland = "is_wayland";
 const String kPlatformAdditionsIsInstalled = "is_installed";
+const String kPlatformAdditionsUnattendedAccess = "unattended_access";
 const String kPlatformAdditionsIddImpl = "idd_impl";
 const String kPlatformAdditionsRustDeskVirtualDisplays =
     "rustdesk_virtual_displays";
@@ -132,6 +133,9 @@ const String kOptionAllowRemoteConfigModification =
     "allow-remote-config-modification";
 const String kOptionVerificationMethod = "verification-method";
 const String kOptionApproveMode = "approve-mode";
+const String kOptionAllowUnattendedAccess = "allow-unattended-access";
+const String kOptionAllowUnattendedReconnect = "allow-unattended-reconnect";
+const String kOptionUnattendedDisplay = "unattended-display";
 const String kOptionAllowNumericOneTimePassword =
     "allow-numeric-one-time-password";
 const String kOptionCollapseToolbar = "collapse_toolbar";

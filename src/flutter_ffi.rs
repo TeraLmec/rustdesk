@@ -2677,6 +2677,33 @@ pub fn main_get_printer_names() -> SyncReturn<String> {
 }
 
 pub fn main_get_common(key: String) -> String {
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    if let Some(request) = key.strip_prefix("wake:") {
+        return crate::wake::handle_request(request);
+    }
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    if key == "unattended-startup-error" {
+        return match crate::platform::unattended::automatic_start_enabled() {
+            Ok(true) => String::new(),
+            Ok(false) => base::config::unattended::STARTUP_REQUIRED.to_owned(),
+            Err(_) => base::config::unattended::STARTUP_UNKNOWN.to_owned(),
+        };
+    }
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    if key == "unattended-access-settings-error" {
+        return base::config::unattended::check_settings(
+            &get_option(keys::OPTION_APPROVE_MODE),
+            get_option(keys::OPTION_VERIFICATION_METHOD) != "use-temporary-password",
+            ui_interface::is_permanent_password_set(),
+            config::option2bool(
+                keys::OPTION_ALLOW_ONLY_CONN_WINDOW_OPEN,
+                &get_option(keys::OPTION_ALLOW_ONLY_CONN_WINDOW_OPEN),
+            ),
+        )
+        .err()
+        .unwrap_or_default()
+        .to_owned();
+    }
     if key == "is-printer-installed" {
         #[cfg(target_os = "windows")]
         {

@@ -71,6 +71,9 @@ pub const OPTION_ALLOW_REMOVE_WALLPAPER: &str = "allow-remove-wallpaper";
 pub const OPTION_ALLOW_ALWAYS_SOFTWARE_RENDER: &str = "allow-always-software-render";
 pub const OPTION_ENABLE_HWCODEC: &str = "enable-hwcodec";
 pub const OPTION_APPROVE_MODE: &str = "approve-mode";
+pub const OPTION_ALLOW_UNATTENDED_ACCESS: &str = "allow-unattended-access";
+pub const OPTION_WAKE_PROFILE: &str = "wake-profile";
+pub const OPTION_ALLOW_UNATTENDED_RECONNECT: &str = "allow-unattended-reconnect";
 pub const OPTION_VERIFICATION_METHOD: &str = "verification-method";
 pub const OPTION_TEMPORARY_PASSWORD_LENGTH: &str = "temporary-password-length";
 pub const OPTION_CUSTOM_RENDEZVOUS_SERVER: &str = "custom-rendezvous-server";
@@ -302,6 +305,7 @@ pub const KEYS_SETTINGS: &[&str] = &[
     OPTION_ALLOW_ALWAYS_SOFTWARE_RENDER,
     OPTION_ENABLE_HWCODEC,
     OPTION_APPROVE_MODE,
+    OPTION_ALLOW_UNATTENDED_ACCESS,
     OPTION_VERIFICATION_METHOD,
     OPTION_TEMPORARY_PASSWORD_LENGTH,
     OPTION_PROXY_URL,

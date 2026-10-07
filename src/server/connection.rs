@@ -1881,6 +1881,13 @@ impl Connection {
         if let Some(keep_alive) = self.prepare_terminal_login_for_authorization().await {
             return keep_alive;
         }
+        #[cfg(any(target_os = "windows", target_os = "linux"))]
+        if self.is_remote() {
+            if let Err(err) = super::unattended::check_runtime().await {
+                self.send_login_error(err).await;
+                return false;
+            }
+        }
         // Lifted here rather than below with the rest of authorization: a multiplexed tunnel
         // narrows it again for its own framing (`port_forward_mux::cap_packet_size`), so that
         // call has to come after this one, not before.
@@ -2007,6 +2014,10 @@ impl Connection {
             platform_additions.insert("support_view_camera".into(), json!(true));
         }
 
+        #[cfg(any(target_os = "windows", target_os = "linux"))]
+        if base::config::unattended::enabled() {
+            platform_additions.insert("unattended_access".into(), json!(true));
+        }
         #[cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))]
         if !platform_additions.is_empty() {
             pi.platform_additions = serde_json::to_string(&platform_additions).unwrap_or("".into());
@@ -2344,6 +2355,9 @@ impl Connection {
     }
 
     fn try_start_cm(&mut self, peer_id: String, name: String, authorized: bool) {
+        if self.is_remote() && base::config::unattended::enabled() && !authorized {
+            return;
+        }
         self.send_to_cm(ipc::Data::Login {
             id: self.inner.id(),
             is_file_transfer: self.file_transfer.is_some(),
@@ -2968,6 +2982,13 @@ impl Connection {
 
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             if !should_use_terminal_os_login_scope(self.terminal, &lr.os_login.username) {
+                #[cfg(any(target_os = "windows", target_os = "linux"))]
+                if self.is_remote() {
+                    if let Err(err) = super::unattended::check_settings() {
+                        self.send_login_error(err).await;
+                        return false;
+                    }
+                }
                 self.try_start_cm_ipc();
             }
 
@@ -3019,6 +3040,11 @@ impl Connection {
                 }
                 self.try_start_cm(lr.my_id.clone(), lr.my_name.clone(), self.authorized);
             } else if lr.password.is_empty() {
+                if self.is_remote() && base::config::unattended::enabled() {
+                    self.send_login_error(crate::client::LOGIN_MSG_PASSWORD_EMPTY)
+                        .await;
+                    return true;
+                }
                 #[cfg(not(any(target_os = "android", target_os = "ios")))]
                 if should_use_terminal_os_login_scope(self.terminal, &lr.os_login.username) {
                     if let Some(keep_alive) = self.prepare_terminal_login_for_authorization().await

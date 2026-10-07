@@ -1,0 +1,19 @@
+[Unit]
+Description=RustDesk authenticated wake helper
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Restart=on-failure
+RestartSec=3
+User=rustdesk-wake
+Group=rustdesk-wake
+ExecStart=/usr/local/bin/rustdesk-wake serve /etc/rustdesk-wake.json
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

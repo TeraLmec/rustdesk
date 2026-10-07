@@ -456,6 +456,9 @@ pub(super) async fn ensure_inited() -> ResultType<()> {
 }
 
 pub(super) fn is_inited() -> Option<Message> {
+    if base::config::unattended::enabled() {
+        return None;
+    }
     if is_x11() {
         None
     } else {
@@ -482,6 +485,7 @@ pub(super) fn is_inited() -> Option<Message> {
 
 pub(super) async fn check_init() -> ResultType<()> {
     if !is_x11() {
+        base::config::unattended::check_interactive_capture()?;
         if CAP_DISPLAY_INFO.read().unwrap().is_empty() {
             if crate::input_service::wayland_use_uinput() {
                 // The cached layout may predate compositor changes made while no session
@@ -734,6 +738,7 @@ pub(super) fn get_capturer_for_display(
         match super::drm_capturer::get_capturer_info(display_idx) {
             Ok(info) => return Ok(info),
             Err(e) => {
+                base::config::unattended::check_interactive_capture()?;
                 log::warn!(
                     "drm capturer for display {} unavailable ({:#}); falling back to PipeWire",
                     display_idx,

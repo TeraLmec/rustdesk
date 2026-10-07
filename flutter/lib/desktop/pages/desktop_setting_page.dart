@@ -997,6 +997,7 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
               child: Column(children: [
                 permissions(context),
                 password(context),
+                if (isWindows || isLinux) unattendedAccess(context),
                 _Card(title: '2FA', children: [tfa()]),
                 if (!isChangeIdDisabled())
                   _Card(title: 'ID', children: [changeId()]),
@@ -1386,6 +1387,35 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
             if (usePassword) radios[2],
           ]);
         })));
+  }
+
+  Widget unattendedAccess(BuildContext context) {
+    return _Card(title: 'Unattended access', children: [
+      _OptionCheckBox(context, 'Require unattended access',
+          kOptionAllowUnattendedAccess,
+          enabled: !locked, optSetter: (key, value) async {
+        if (value) {
+          final error = await bind.mainGetCommon(
+              key: 'unattended-access-settings-error');
+          if (error.isNotEmpty) {
+            msgBox(gFFI.sessionId, 'error', 'Unattended access', error, '',
+                gFFI.dialogManager);
+            return;
+          }
+        }
+        await mainSetBoolOption(key, value);
+      }),
+      Text(translate('unattended-access-tip'))
+          .marginSymmetric(horizontal: _kContentHMargin),
+      TextButton(
+          onPressed: () async {
+            final error = await bind.mainGetCommon(key: 'unattended-startup-error');
+            msgBox(gFFI.sessionId, error.isEmpty ? 'info' : 'error',
+                'Automatic service startup', error.isEmpty ? 'Successful' : error,
+                '', gFFI.dialogManager);
+          },
+          child: Text(translate('Check automatic service startup'))),
+    ]);
   }
 
   Widget more(BuildContext context) {

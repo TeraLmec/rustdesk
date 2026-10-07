@@ -1,0 +1,10 @@
+{
+  "listen": "127.0.0.1:21120",
+  "devices": {
+    "desktop": {
+      "mac": "02:11:22:33:44:55",
+      "broadcast": "192.168.1.255:9",
+      "keys": ["REPLACE_WITH_OUTPUT_FROM_RUSTDESK_WAKE_KEYGEN"]
+    }
+  }
+}

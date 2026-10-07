@@ -2559,6 +2559,20 @@ pub fn wayland_use_uinput() -> bool {
     !crate::platform::is_x11() && crate::is_server()
 }
 
+#[cfg(all(target_os = "linux", feature = "drm"))]
+pub(super) fn unattended_input_ready() -> bool {
+    let mut en = ENIGO.lock().unwrap();
+    wayland_use_uinput()
+        && en.get_custom_keyboard().as_mut().map_or(false, |keyboard| {
+            keyboard
+                .as_mut_any()
+                .is::<super::uinput::client::UInputKeyboard>()
+        })
+        && en.get_custom_mouse().as_mut().map_or(false, |mouse| {
+            mouse.as_mut_any().is::<super::uinput::client::UInputMouse>()
+        })
+}
+
 #[inline]
 #[cfg(target_os = "linux")]
 pub fn wayland_use_rdp_input() -> bool {

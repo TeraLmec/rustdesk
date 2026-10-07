@@ -23,6 +23,9 @@ pub mod linux;
 #[cfg(target_os = "linux")]
 pub mod gtk_sudo;
 
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+pub mod unattended;
+
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use base::message_proto::CursorData;
 #[cfg(all(
